@@ -3,48 +3,66 @@ var fs      = require('fs'),
 
 var transformFile = function(inFileName, outFileName, transform) {
 
-    fs.open(outFileName, 'w', function(err, outFD) {
+    fs.readFile(inFileName, 'utf-8', function(err, inFileData) {
 
         if (err) {
-            console.log('Couldn\'t open ' + outFileName + ' for writing!');
-            return false;
+            console.log('Couldn\'t read ' + inFileName + '!');
+            return;
         }
 
-        fs.readFile(inFileName, 'utf-8', function(err, inFileData) {
+        fs.writeFile(outFileName, transform(inFileData), function(err) {
 
             if (err) {
-                console.log('Couldn\'t read ' + inFileName + '!');
-                return;
+                console.log('Couldn\'t write to ' + outFileName + '!');
+            } else {
+                console.log('Wrote ' + outFileName + '.');
             }
-
-            fs.write(outFD, transform(inFileData));
-
         });
+
     });
 };
 
 var stripAlert = function(text) {
     // strip first line
-    return text.split(/\n/).splice(1);
+    return text.split(/\n/).splice(1).join('\n');
+};
+
+
+var withBuildDir = function(success) {
+
+    var buildDirPath = './build';
+
+    fs.stat(buildDirPath, function(err, data) {
+
+        if (data) {
+
+            success();
+        } else {
+
+            fs.mkdir('./build', '0777', function(err) {
+
+                if (err) {
+                    console.log('Couldn\'t create build directory');
+                    return;
+                }
+                
+                console.log('Created ./build');
+                success();
+            });
+        }
+    });
 };
 
 task('default',
     [],
     function() {
 
-        fs.mkdir('./build', '0777', function(err) {
-
-            if (err) {
-                console.log('Couldn\'t create build directory');
-                return;
-            }
-
+        withBuildDir(function() {
             transformFile(
                 './froogaloop.min.js',
                 './build/froogaloop.min.js',
                 stripAlert
             );
         });
-
     }
 );
